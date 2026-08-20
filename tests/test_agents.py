@@ -22,14 +22,19 @@ async def test_data_agent_runs_sql(data_agent, agent_context):
 
 
 @pytest.mark.asyncio
-async def test_ml_agent_summarizes(ml_agent, agent_context):
+async def test_ml_agent_summarizes_amount_column(ml_agent, agent_context):
     agent_context.data["data_results"] = [
-        {"step": "fetch", "sql": "SELECT value", "rows": [{"value": 80}, {"value": 200}]}
+        {
+            "step": "fetch",
+            "sql": "SELECT amount FROM revenue",
+            "rows": [{"amount": 80}, {"amount": 200}],
+        }
     ]
     agent_context.data["current_step"] = {"description": "Detect anomalies"}
     result = await ml_agent.run(agent_context)
 
     assert result.data["ml_summaries"]
+    assert result.data["ml_summaries"][0]["column"] == "amount"
     assert "anomaly" in result.data["ml_summaries"][0]["summary"].lower()
 
 

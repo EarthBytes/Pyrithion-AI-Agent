@@ -20,7 +20,7 @@ wait_for() {
 wait_for postgres 5432 postgres
 wait_for qdrant 6333 qdrant
 
-python scripts/init_db.py || true
-python scripts/load_docs.py || true
+python scripts/init_db.py
+python scripts/load_docs.py
 
 exec "$@"
