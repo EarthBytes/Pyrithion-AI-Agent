@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pyrithion AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --accent: #1e40af;
+      --accent-hover: #1e3a8a;
+      --success-bg: #f0fdf4;
+      --success-text: #166534;
+      --success-border: #bbf7d0;
+      --error-bg: #fef2f2;
+      --error-text: #991b1b;
+      --error-border: #fecaca;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .page {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 64px 24px 80px;
+    }
+    .header {
+      margin-bottom: 32px;
+    }
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .header p {
+      margin: 0;
+      font-size: 1rem;
+      color: var(--muted);
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+    .alert {
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+      font-size: 0.9375rem;
+    }
+    .alert-success {
+      background: var(--success-bg);
+      color: var(--success-text);
+      border: 1px solid var(--success-border);
+    }
+    .alert-error {
+      background: var(--error-bg);
+      color: var(--error-text);
+      border: 1px solid var(--error-border);
+    }
+    .field { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-weight: 500;
+      font-size: 0.875rem;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    textarea, input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font: inherit;
+      font-size: 1rem;
+      color: var(--text);
+      background: #fff;
+    }
+    textarea:focus, input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
+    }
+    textarea { min-height: 112px; resize: vertical; }
+    button {
+      width: 100%;
+      margin-top: 8px;
+      border: 0;
+      border-radius: 8px;
+      padding: 14px 20px;
+      font: inherit;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    button:hover { background: var(--accent-hover); }
+    .footer {
+      margin-top: 24px;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <h1>Pyrithion AI</h1>
+      <p>Ask a question about your documents. We will email you a report.</p>
+    </header>
+
+    <main class="card">
+      {% if submitted %}
+        <div class="alert alert-success">
+          Your report will be sent to <strong>{{ email }}</strong> when it is ready.
+        </div>
+      {% endif %}
+
+      {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="/ask">
+        <div class="field">
+          <label for="goal">Question</label>
+          <textarea id="goal" name="goal" placeholder="What would you like to know?" required>{{ goal or '' }}</textarea>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="you@example.com" value="{{ email or '' }}" required />
+        </div>
+
+        <button type="submit">Submit</button>
+      </form>
+    </main>
+
+    <p class="footer">Reports are generated from documents synced to your Google Drive folder.</p>
+  </div>
+</body>
+</html>

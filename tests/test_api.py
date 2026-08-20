@@ -8,7 +8,13 @@ from app.orchestrator.state import TaskStatus
 
 
 class ImmediateOrchestrator:
-    async def run_task(self, task_id: str, user_goal: str, user_email: str) -> AgentContext:
+    async def run_task(
+        self,
+        task_id: str,
+        user_goal: str,
+        user_email: str,
+        source_document: str | None = None,
+    ) -> AgentContext:
         context = AgentContext(task_id=task_id, user_goal=user_goal, user_email=user_email)
         context.data["final_report"] = "Test report body"
         context.logs.append({"event": "done"})
@@ -16,7 +22,13 @@ class ImmediateOrchestrator:
 
 
 class FailingOrchestrator:
-    async def run_task(self, task_id: str, user_goal: str, user_email: str) -> AgentContext:
+    async def run_task(
+        self,
+        task_id: str,
+        user_goal: str,
+        user_email: str,
+        source_document: str | None = None,
+    ) -> AgentContext:
         raise RuntimeError("boom")
 
 

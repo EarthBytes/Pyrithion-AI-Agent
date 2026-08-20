@@ -1,0 +1,20 @@
+{{ brand_name }}
+
+Dear User,
+
+Thank you for your enquiry. Please find your report attached.
+
+Your question
+{{ goal }}
+
+{% if sources %}
+Sources
+{% for source in sources -%}
+- {{ source.get('filename') or source.get('source') or 'Document' }}
+
+{% endfor %}
+{% endif %}
+Kind regards,
+{{ brand_name }}
+
+Sent to {{ recipient_email }}

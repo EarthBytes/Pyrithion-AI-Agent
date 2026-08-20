@@ -27,11 +27,7 @@ services:
       - "6333:6333"
     volumes:
       - qdrantdata:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+    # Qdrant image has no curl; app entrypoint waits for port 6333 before starting.
 
   app:
     build:
@@ -42,29 +38,21 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # Only set values that differ inside Docker. SMTP/LLM/Drive come from env_file
+      # so shell exports cannot override your .env (see Docker Compose precedence rules).
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-analytics}
       QDRANT_URL: http://qdrant:6333
-      QDRANT_COLLECTION: docs
-      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-google/gemini-flash-1.5}
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-465}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      API_KEY: ${API_KEY:-}
-      SQL_ALLOWED_TABLES: ${SQL_ALLOWED_TABLES:-energy_usage,revenue,users}
-      SQL_ROW_LIMIT: ${SQL_ROW_LIMIT:-500}
+      REPORTS_DIR: /app/reports
       OCSVM_MODEL_PATH: ""
       REGRESSION_MODEL_PATH: ""
-      REPORTS_DIR: /app/reports
     volumes:
       - ../reports:/app/reports
+      - ../credentials:/app/credentials:ro
     depends_on:
       postgres:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s

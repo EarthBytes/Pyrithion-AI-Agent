@@ -65,4 +65,9 @@ async def test_executor_sends_email(executor_agent, agent_context):
     sent = executor_agent.tools["email"].sent
     assert sent
     assert sent[0]["to"] == "user@example.com"
-    assert sent[0]["body"] == "Final report body"
+    assert sent[0]["attachments"]
+    attachment_names = [name for name, _, _ in sent[0]["attachments"]]
+    assert any(name.endswith(".txt") for name in attachment_names)
+    assert any(name.endswith(".docx") for name in attachment_names)
+    txt_payload = next(data for name, data, _ in sent[0]["attachments"] if name.endswith(".txt"))
+    assert b"Final report body" in txt_payload

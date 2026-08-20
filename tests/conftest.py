@@ -34,7 +34,7 @@ class FakeLLM:
             return "Detected one anomaly spike in recent values."
         if "context-enrichment agent" in prompt.lower():
             return "External benchmarks suggest usage is within normal range."
-        if "report-writing agent" in prompt.lower():
+        if "report-writing agent" in prompt.lower() or "report writer" in prompt.lower():
             return "# Report\n\nOverview\n\nData shows stable usage with one spike."
         return "Summary text"
 
@@ -48,16 +48,38 @@ class FakeEmailTool:
     def __init__(self):
         self.sent = []
 
-    def send_email(self, to: str, subject: str, body: str) -> None:
-        self.sent.append({"to": to, "subject": subject, "body": body})
+    def send_email(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        html_body: str | None = None,
+        attachments: list[tuple[str, bytes, str]] | None = None,
+    ) -> None:
+        self.sent.append(
+            {
+                "to": to,
+                "subject": subject,
+                "body": body,
+                "html_body": html_body,
+                "attachments": attachments or [],
+            }
+        )
 
-    async def send_email_async(self, to: str, subject: str, body: str) -> None:
-        self.send_email(to, subject, body)
+    async def send_email_async(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        html_body: str | None = None,
+        attachments: list[tuple[str, bytes, str]] | None = None,
+    ) -> None:
+        self.send_email(to, subject, body, html_body, attachments)
 
 
 class FakeRAGTool:
-    def search(self, query: str):
-        return [{"text": "Benchmark doc", "score": 0.9, "metadata": {}}]
+    def search(self, query: str, filename_hint: str | None = None):
+        return [{"text": "Benchmark doc", "score": 0.9, "metadata": {}, "filename": "benchmark.doc"}]
 
 
 @pytest.fixture

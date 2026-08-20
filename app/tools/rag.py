@@ -23,15 +23,16 @@ class RAGTool:
         self.embed_fn = embed_fn or self._resolve_embedder()
         self.limit = limit
 
-    def search(self, query: str) -> list[dict]:
+    def search(self, query: str, filename_hint: str | None = None) -> list[dict]:
         try:
             vector = self.embed_fn(query)
-            docs = self.qdrant.search(vector, limit=self.limit)
+            docs = self.qdrant.search(vector, limit=self.limit, filename_hint=filename_hint)
             return [
                 {
                     "text": doc.text,
                     "score": doc.score,
                     "metadata": doc.metadata,
+                    "filename": doc.metadata.get("filename"),
                 }
                 for doc in docs
             ]

@@ -73,5 +73,14 @@ class LLMClient:
         text = text.strip()
         fence_match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
         if fence_match:
-            text = fence_match.group(1)
-        return json.loads(text)
+            text = fence_match.group(1).strip()
+        else:
+            object_match = re.search(r"\{.*\}", text, re.DOTALL)
+            if object_match:
+                text = object_match.group(0)
+
+        try:
+            return json.loads(text, strict=False)
+        except json.JSONDecodeError:
+            cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", " ", text)
+            return json.loads(cleaned, strict=False)

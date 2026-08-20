@@ -14,6 +14,8 @@ class JSONFormatter(logging.Formatter):
         }
         if hasattr(record, "extra_fields"):
             payload.update(record.extra_fields)
+        if record.exc_info:
+            payload["error"] = logging.Formatter().formatException(record.exc_info)
         return json.dumps(payload, default=str)
 
 
