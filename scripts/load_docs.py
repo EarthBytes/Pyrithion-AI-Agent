@@ -1,4 +1,4 @@
-"""Load sample reference documents into Qdrant for RAG enrichment."""
+"""Load reference documents into Qdrant for Q&A."""
 
 import sys
 import uuid
@@ -6,8 +6,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.config import settings
 from app.memory.qdrant_client import QdrantMemoryClient
 from app.memory.schemas import Document
+from app.tools.google_drive import sync_drive_documents
 from app.tools.rag import RAGTool
 
 SAMPLE_DOCS = [
@@ -42,7 +44,7 @@ SAMPLE_DOCS = [
 ]
 
 
-def load_docs() -> None:
+def load_sample_docs() -> int:
     qdrant = QdrantMemoryClient()
     rag = RAGTool(qdrant_client=qdrant)
 
@@ -52,7 +54,26 @@ def load_docs() -> None:
     ]
     vectors = [rag.embed_fn(doc.text) for doc in documents]
     qdrant.upsert_documents(documents, vectors)
-    print(f"Loaded {len(documents)} documents into Qdrant collection '{qdrant.collection}'.")
+    return len(documents)
+
+
+def load_docs() -> int:
+    if settings.google_drive_folder_id and settings.google_service_account_file:
+        if settings.drive_configured:
+            try:
+                return sync_drive_documents()
+            except Exception as exc:
+                print(f"Google Drive sync failed: {exc}")
+                print("Falling back to sample documents.")
+        else:
+            print(
+                "Google Drive configured but credentials file not found: "
+                f"{settings.google_service_account_file}\n"
+                "Falling back to sample documents."
+            )
+    count = load_sample_docs()
+    print(f"Loaded {count} sample documents into Qdrant collection '{settings.qdrant_collection}'.")
+    return count
 
 
 def main() -> None:

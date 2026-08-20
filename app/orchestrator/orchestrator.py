@@ -4,6 +4,21 @@ from app.agents.base import AgentContext
 
 ALLOWED_AGENTS = {"planner", "data", "ml", "research", "writer", "executor"}
 
+DOCUMENT_KEYWORDS = (
+    "sheet",
+    "spreadsheet",
+    "csv",
+    "document",
+    "policy",
+    "guide",
+    "drive",
+    "google drive",
+    "uploaded",
+    "file",
+    "budget",
+    "marketing",
+)
+
 
 class Orchestrator:
     def __init__(self, agents: dict, filesystem_tool=None, logger: logging.Logger | None = None):
@@ -11,8 +26,16 @@ class Orchestrator:
         self.filesystem_tool = filesystem_tool
         self.logger = logger or logging.getLogger("app")
 
-    async def run_task(self, task_id: str, user_goal: str, user_email: str) -> AgentContext:
+    async def run_task(
+        self,
+        task_id: str,
+        user_goal: str,
+        user_email: str,
+        source_document: str | None = None,
+    ) -> AgentContext:
         context = AgentContext(task_id=task_id, user_goal=user_goal, user_email=user_email)
+        if source_document:
+            context.data["source_document"] = source_document.strip()
         self.logger.info(
             "Starting task",
             extra={"extra_fields": {"task_id": task_id, "goal": user_goal}},
@@ -24,7 +47,11 @@ class Orchestrator:
         if not isinstance(plan, list) or not plan:
             raise ValueError("Planner returned an empty or invalid plan")
 
-        plan = self._normalize_plan(plan)
+        plan = self._normalize_plan(
+            plan,
+            user_goal=user_goal,
+            source_document=source_document,
+        )
         context.data["plan"] = plan
 
         for step in plan:
@@ -46,7 +73,20 @@ class Orchestrator:
 
         return context
 
-    def _normalize_plan(self, plan: list[dict]) -> list[dict]:
+    @staticmethod
+    def _is_document_question(user_goal: str, source_document: str | None) -> bool:
+        if source_document:
+            return True
+        goal = user_goal.lower()
+        return any(keyword in goal for keyword in DOCUMENT_KEYWORDS)
+
+    def _normalize_plan(
+        self,
+        plan: list[dict],
+        *,
+        user_goal: str = "",
+        source_document: str | None = None,
+    ) -> list[dict]:
         cleaned: list[dict] = []
         for step in plan:
             agent = str(step.get("agent", "")).strip().lower()
@@ -64,8 +104,21 @@ class Orchestrator:
         if not cleaned:
             raise ValueError("Plan has no executable steps")
 
-        # Ensure writer then executor finish the pipeline when those agents exist.
         available = set(self.agents)
+        if self._is_document_question(user_goal, source_document):
+            cleaned = [step for step in cleaned if step["agent"] not in {"data", "ml"}]
+            if "research" in available and not any(
+                step["agent"] == "research" for step in cleaned
+            ):
+                cleaned.insert(
+                    0,
+                    {
+                        "agent": "research",
+                        "description": "Search synced documents and spreadsheets",
+                    },
+                )
+
+        # Ensure writer then executor finish the pipeline when those agents exist.
         agents_in_plan = [s["agent"] for s in cleaned]
         if "writer" in available and "writer" not in agents_in_plan:
             cleaned.append({"agent": "writer", "description": "Write final report"})

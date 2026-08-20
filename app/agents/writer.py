@@ -1,22 +1,6 @@
-from .base import BaseAgent, AgentContext
+from .base import AgentContext, BaseAgent
+from app.utils.prompts import WRITER_PROMPT_ANALYTICS, WRITER_PROMPT_DOCUMENT
 
-WRITER_PROMPT = """
-You are a report-writing agent for an email report generator.
-You receive:
-- user goal
-- data results (SQL outputs)
-- ML summaries (anomalies/trends)
-- optional research context
-
-You must produce a clear, structured report with sections:
-1. Overview
-2. Data Summary
-3. Anomaly / Trend Analysis
-4. External Context (if available)
-5. Recommendations
-
-Write in concise, professional language suitable for email.
-"""
 
 class WriterAgent(BaseAgent):
     name = "writer"
@@ -27,8 +11,11 @@ class WriterAgent(BaseAgent):
         ml_summaries = context.data.get("ml_summaries", [])
         research_context = context.data.get("research_context", [])
 
+        document_only = bool(research_context) and not data_results
+        writer_prompt = WRITER_PROMPT_DOCUMENT if document_only else WRITER_PROMPT_ANALYTICS
+
         prompt = f"""
-{WRITER_PROMPT}
+{writer_prompt}
 
 User goal:
 {context.user_goal}
@@ -39,7 +26,7 @@ Data results:
 ML summaries:
 {ml_summaries}
 
-Research context:
+Research context (primary source for document questions):
 {research_context}
 """
         report = await self.llm.call_text(prompt)

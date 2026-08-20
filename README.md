@@ -1,145 +1,101 @@
-# Multi-Agent Research & Automation System
+# Pyrithion AI
 
-A small multi-agent system that takes an analytics request, researches the data, writes a report, and emails the result.
+A multi-agent system that answers questions from Google Drive documents and delivers structured reports by email.
 
-The system is split into a few simple agents:
+Pyrithion AI connects to a shared Google Drive folder, retrieves relevant content using vector search, and runs a pipeline of specialised agents to plan, research, write, and deliver a report.
 
-| Agent        | What it does                           |
-| ------------ | -------------------------------------- |
-| **Planner**  | Breaks the request into steps          |
-| **Data**     | Generates and runs read-only SQL       |
-| **ML**       | Looks for anomalies and trends         |
-| **Research** | Finds relevant information from Qdrant |
-| **Writer**   | Writes the final report                |
-| **Executor** | Sends the report by email              |
+## Features
 
-Tasks run in the background. You create a task and then check its status using the task ID.
+- Web interface for question submission
+- Google Drive document sync (Docs, Sheets, PDF, Word, CSV)
+- Retrieval-augmented generation (RAG) over synced documents
+- Multi-agent workflow: planner, research, writer, executor
+- Email delivery with report attachments
+- Optional SQL analytics against PostgreSQL
+- Docker-based deployment
+
+## Tech stack
+
+| Layer | Technology |
+|-------|------------|
+| API | FastAPI, Uvicorn |
+| Agents | Custom orchestrator, OpenRouter (Claude Haiku) |
+| Vector store | Qdrant |
+| Embeddings | OpenAI text-embedding-3-small (via OpenRouter) |
+| Database | PostgreSQL, asyncpg |
+| Documents | Google Drive API, service account auth |
+| Email | Resend API or SMTP |
+| Templates | Jinja2 |
+| Runtime | Docker Compose |
+| Tests | pytest |
 
 ## Quick start
 
-### 1. Set up the environment
-
 ```bash
 cp .env.example .env
+cp credentials/google-service-account.json.example credentials/google-service-account.json
+# Edit .env and credentials/google-service-account.json with your values
+./start.sh
 ```
 
-Add the required values to `.env`, including:
+Open http://localhost:8000
 
-* `POSTGRES_PASSWORD`
-* `LLM_API_KEY`
-* `SMTP_*`
-* `API_KEY` (optional for local development)
+## Configuration
 
-### 2. Run with Docker
+See `.env.example` for all variables. Key settings:
 
-```bash
-docker compose -f docker/docker-compose.yml --env-file .env up --build
+- `GOOGLE_DRIVE_FOLDER_ID` and `GOOGLE_SERVICE_ACCOUNT_FILE` for document access
+- `EMAIL_PROVIDER=resend` with `RESEND_API_KEY`, or SMTP settings
+- `LLM_API_KEY` and `LLM_MODEL` for the agent LLM
+- `IMAP_ENABLED=false` recommended until outbound email is verified
+
+**Secrets:** `.env` and `credentials/*.json` are gitignored. Use `.env.example` and `credentials/*.example.json` as templates only.
+
+## Architecture
+
+```text
+User question (web form)
+       |
+   Planner agent
+       |
+   Research agent (RAG / Google Drive)
+       |
+   Writer agent
+       |
+   Executor agent (email + attachments)
 ```
 
-Then open:
-
-* App: http://localhost:8000
-* API docs: http://localhost:8000/docs
-
-### 3. Run the app locally
-
-Create a virtual environment and install the dependencies:
+## Development
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-Start Postgres and Qdrant, then initialise the database:
-
-```bash
-python scripts/init_db.py
-python scripts/load_docs.py
-uvicorn app.main:app --reload
-```
-
-## API
-
-If `API_KEY` is set, API requests need an `X-API-Key` header.
-
-### Create a task
-
-```bash
-curl -X POST http://localhost:8000/api/tasks \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-key" \
-  -d '{"goal":"Analyse energy usage anomalies and email a report","email":"you@example.com"}'
-```
-
-You will get a task ID back:
-
-```json
-{
-  "task_id": "...",
-  "status": "pending"
-}
-```
-
-### Check the result
-
-Use the task ID to check the task:
-
-```bash
-curl http://localhost:8000/api/result/<task_id> \
-  -H "X-API-Key: your-key"
-```
-
-Keep polling until the status is either `completed` or `failed`.
-
-### Health checks
-
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/ready
-```
-
-## Configuration
-
-The main environment variables are:
-
-| Variable                      | What it does                                |
-| ----------------------------- | ------------------------------------------- |
-| `DATABASE_URL` / `POSTGRES_*` | Postgres connection                         |
-| `QDRANT_URL`                  | Qdrant connection                           |
-| `LLM_PROVIDER`                | LLM provider                                |
-| `LLM_API_KEY`                 | LLM API key                                 |
-| `LLM_MODEL`                   | LLM model to use                            |
-| `SMTP_*`                      | Email settings                              |
-| `API_KEY`                     | Protects the API                            |
-| `SQL_ALLOWED_TABLES`          | Tables the SQL agent can access             |
-| `SQL_ROW_LIMIT`               | Maximum number of SQL rows returned         |
-| `EMBEDDING_PROVIDER`          | Embedding provider                          |
-| `EMBEDDING_MODEL`             | Embedding model when using the API provider |
-
-See `.env.example` for the full list.
-
-## Security
-
-A few basic safeguards are built in:
-
-* SQL is read-only (`SELECT` only).
-* SQL can only access allowlisted tables.
-* Only one SQL statement is allowed at a time.
-* SQL results have a row limit.
-* The API can be protected with `API_KEY`.
-* Secrets are stored in `.env`, which should not be committed to Git.
-
-If the API is exposed outside local development, set a strong `API_KEY`.
-
-## Tests
-
-Run the test suite with:
-
-```bash
 pytest
 ```
 
-## CI
+## Images
 
-GitHub Actions runs the tests and builds the Docker image on pushes and pull requests to `main`.
+### Web interface
+
+Users submit a question and delivery address through a simple form.
+
+![Pyrithion AI web interface](images/WebsiteInterface.png)
+
+### Email notification
+
+The agent sends an email confirming the enquiry, listing sources used, and attaching the report.
+
+![Pyrithion AI email notification](images/Email.png)
+
+### Report attachment
+
+Reports are delivered as Word and plain-text attachments with the question, analysis, key figures, and cited sources.
+
+![Pyrithion AI report document](images/Worddoc.png)
+
+---
+
+## License
+
+MIT

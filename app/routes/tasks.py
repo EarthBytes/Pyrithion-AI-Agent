@@ -25,10 +25,13 @@ async def _run_in_background(
     email: str,
     orchestrator: Orchestrator,
     task_store: TaskStore,
+    source_document: str | None = None,
 ) -> None:
     try:
         await task_store.persist_update(task_id, TaskStatus.RUNNING)
-        context = await orchestrator.run_task(task_id, goal, email)
+        context = await orchestrator.run_task(
+            task_id, goal, email, source_document=source_document
+        )
         await task_store.persist_update(task_id, TaskStatus.COMPLETED, context=context)
     except Exception as exc:
         logger.exception("Task %s failed", task_id)

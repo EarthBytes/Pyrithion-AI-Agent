@@ -2,6 +2,13 @@
 app/__pycache__
 .venv/
 .env
+.env.local
+.env.*.local
 reports/
 __pycache__/
 .pytest_cache/
+.DS_Store
+
+# Secrets 
+credentials/*.json
+!credentials/*.example.json

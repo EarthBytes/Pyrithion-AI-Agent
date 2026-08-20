@@ -3,19 +3,24 @@ from .base import BaseAgent, AgentContext
 PLANNER_PROMPT = """
 You are a planning agent for an email report generator.
 Given a user's goal, break it into ordered steps.
-Use these agents:
-- data: fetch and aggregate data via SQL
-- ml: run anomaly/trend analysis
-- research: optional external/RAG context
+
+Available agents:
+- data: fetch and aggregate data via SQL (only for database/analytics questions)
+- ml: run anomaly/trend analysis on numeric query results
+- research: find answers from uploaded documents and knowledge base (policies, guides, reports)
 - writer: write the final report
 - executor: deliver the report via email
 
-Always include writer and executor as the last two steps.
+Rules:
+- For document, policy, Google Drive, Google Sheets, CSV, or spreadsheet questions: use research -> writer -> executor ONLY
+- Never use the data or ml agents for spreadsheet or document questions — they cannot read Drive files
+- For database/analytics questions about Postgres tables: use data (and ml if trends/anomalies are needed) -> writer -> executor
+- research can be combined with data/ml only when the user explicitly asks for both documents and database analytics
+- Always end with writer then executor
 
 Return JSON:
 {"steps": [
-  {"agent": "data", "description": "..."},
-  {"agent": "ml", "description": "..."},
+  {"agent": "research", "description": "..."},
   {"agent": "writer", "description": "..."},
   {"agent": "executor", "description": "..."}
 ]}

@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,9 +11,11 @@ from app.logging.logger import setup_logger
 from app.models.llm_client import LLMClient
 from app.orchestrator.orchestrator import Orchestrator
 from app.orchestrator.state import build_task_store
-from app.routes import health, tasks
+from app.routes import health, tasks, ui
 from app.tools import email, ml_tools, rag, sql
 from app.tools.filesystem import FilesystemTool
+from app.tools.google_drive import sync_drive_documents
+from app.workers.email_inbox import EmailInboxWorker
 
 logger = setup_logger()
 
@@ -28,13 +31,31 @@ async def lifespan(app: FastAPI):
 
     app.state.task_store = await build_task_store(sql_tool.pool)
     tasks.router.task_store = app.state.task_store
+    ui.router.task_store = app.state.task_store
     health.router.sql_tool = sql_tool
+
+    if settings.drive_configured and settings.drive_sync_on_startup:
+        try:
+            count = await asyncio.to_thread(sync_drive_documents)
+            logger.info("Drive sync on startup loaded %s documents", count)
+        except Exception as exc:
+            logger.warning("Drive sync on startup failed: %s", exc)
+
+    app.state.email_worker = EmailInboxWorker(
+        orchestrator=app.state.orchestrator,
+        task_store=app.state.task_store,
+        email_tool=app.state.email_tool,
+    )
+    app.state.email_worker.start()
+
     yield
+
+    await app.state.email_worker.stop()
     await sql_tool.close()
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Multi-Agent Research & Automation System", lifespan=lifespan)
+    app = FastAPI(title="Pyrithion AI", lifespan=lifespan)
 
     llm = LLMClient()
     sql_tool = sql.SQLTool(dsn=settings.database_url)
@@ -43,12 +64,25 @@ def create_app() -> FastAPI:
         reg_path=settings.regression_model_path,
     )
     rag_tool = rag.RAGTool()
-    email_tool = email.EmailTool(
-        smtp_host=settings.smtp_host,
-        smtp_port=settings.smtp_port,
-        username=settings.smtp_username,
-        password=settings.smtp_password,
-    )
+    email_tool = email.build_email_tool(settings)
+    if settings.email_configured:
+        if settings.email_provider == "resend":
+            logger.info(
+                "Outbound email: %s <%s> via Resend API",
+                settings.smtp_from_name,
+                settings.smtp_from_address,
+            )
+        else:
+            logger.info(
+                "Outbound email: %s <%s> via %s:%s (SMTP login: %s)",
+                settings.smtp_from_name,
+                settings.smtp_from_address,
+                settings.smtp_host,
+                settings.smtp_port,
+                settings.smtp_username,
+            )
+            for warning in settings.smtp_config_warnings():
+                logger.warning("Email config: %s", warning)
     fs_tool = FilesystemTool(base_dir=settings.reports_dir)
 
     agents = {
@@ -68,11 +102,15 @@ def create_app() -> FastAPI:
 
     app.state.sql_tool = sql_tool
     app.state.orchestrator = orchestrator
+    app.state.email_tool = email_tool
 
     tasks.router.orchestrator = orchestrator
     tasks.router.task_store = None  # set during lifespan
+    ui.router.orchestrator = orchestrator
+    ui.router.task_store = None  # set during lifespan
     health.router.sql_tool = sql_tool
 
+    app.include_router(ui.router)
     app.include_router(health.router)
     app.include_router(tasks.router, prefix="/api")
 
