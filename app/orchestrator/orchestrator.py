@@ -1,5 +1,9 @@
 import logging
+
 from app.agents.base import AgentContext
+
+ALLOWED_AGENTS = {"planner", "data", "ml", "research", "writer", "executor"}
+
 
 class Orchestrator:
     def __init__(self, agents: dict, filesystem_tool=None, logger: logging.Logger | None = None):
@@ -14,14 +18,19 @@ class Orchestrator:
             extra={"extra_fields": {"task_id": task_id, "goal": user_goal}},
         )
 
-        # 1. planning
         planner = self.agents["planner"]
         context = await planner.run(context)
-        plan = context.data["plan"]
+        plan = context.data.get("plan") or []
+        if not isinstance(plan, list) or not plan:
+            raise ValueError("Planner returned an empty or invalid plan")
 
-        # 2. execute steps
+        plan = self._normalize_plan(plan)
+        context.data["plan"] = plan
+
         for step in plan:
             agent_name = step["agent"]
+            if agent_name not in self.agents:
+                raise ValueError(f"Unknown agent in plan: {agent_name}")
             context.data["current_step"] = step
             agent = self.agents[agent_name]
             context = await agent.run(context)
@@ -36,3 +45,34 @@ class Orchestrator:
             context.logs.append({"event": "report_saved", "path": str(path)})
 
         return context
+
+    def _normalize_plan(self, plan: list[dict]) -> list[dict]:
+        cleaned: list[dict] = []
+        for step in plan:
+            agent = str(step.get("agent", "")).strip().lower()
+            if agent == "planner":
+                continue
+            if agent not in ALLOWED_AGENTS - {"planner"}:
+                raise ValueError(f"Invalid agent name in plan: {agent}")
+            cleaned.append(
+                {
+                    "agent": agent,
+                    "description": step.get("description") or f"Run {agent}",
+                }
+            )
+
+        if not cleaned:
+            raise ValueError("Plan has no executable steps")
+
+        # Ensure writer then executor finish the pipeline when those agents exist.
+        available = set(self.agents)
+        agents_in_plan = [s["agent"] for s in cleaned]
+        if "writer" in available and "writer" not in agents_in_plan:
+            cleaned.append({"agent": "writer", "description": "Write final report"})
+        if "executor" in available and "executor" not in agents_in_plan:
+            cleaned.append({"agent": "executor", "description": "Email report"})
+        elif "executor" in agents_in_plan:
+            executor_steps = [s for s in cleaned if s["agent"] == "executor"]
+            cleaned = [s for s in cleaned if s["agent"] != "executor"] + executor_steps[-1:]
+
+        return cleaned

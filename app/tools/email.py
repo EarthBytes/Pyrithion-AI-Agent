@@ -1,3 +1,4 @@
+import asyncio
 import smtplib
 from email.message import EmailMessage
 
@@ -19,3 +20,6 @@ class EmailTool:
         with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port) as smtp:
             smtp.login(self.username, self.password)
             smtp.send_message(msg)
+
+    async def send_email_async(self, to: str, subject: str, body: str) -> None:
+        await asyncio.to_thread(self.send_email, to, subject, body)

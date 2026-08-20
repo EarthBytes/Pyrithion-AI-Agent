@@ -29,10 +29,18 @@ Report (excerpt):
         decision = await self.llm.call_json(prompt)
         subject = decision["subject"]
 
-        self.tools["email"].send_email(
-            to=context.user_email,
-            subject=subject,
-            body=report,
-        )
+        email_tool = self.tools["email"]
+        if hasattr(email_tool, "send_email_async"):
+            await email_tool.send_email_async(
+                to=context.user_email,
+                subject=subject,
+                body=report,
+            )
+        else:
+            email_tool.send_email(
+                to=context.user_email,
+                subject=subject,
+                body=report,
+            )
         context.logs.append({"agent": self.name, "event": "email_sent", "to": context.user_email})
         return context

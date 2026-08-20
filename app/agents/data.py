@@ -1,4 +1,6 @@
-from .base import BaseAgent, AgentContext
+from app.tools.sql import SQLValidationError
+
+from .base import AgentContext, BaseAgent
 
 DATA_PROMPT = """
 You are a data agent.
@@ -7,10 +9,12 @@ You must output a single SQL query that is:
 - SELECT-only
 - safe (no DROP/UPDATE/DELETE)
 - appropriate for analytics.
+- limited to allowlisted tables in the schema
 
 Return JSON:
 {"sql": "..."}
 """
+
 
 class DataAgent(BaseAgent):
     name = "data"
@@ -36,7 +40,14 @@ Task:
         sql_json = await self.llm.call_json(prompt)
         sql = sql_json["sql"]
 
-        rows = await self.tools["sql"].query(sql)
+        try:
+            rows = await self.tools["sql"].query(sql)
+        except SQLValidationError as exc:
+            context.logs.append(
+                {"agent": self.name, "event": "sql_rejected", "sql": sql, "reason": str(exc)}
+            )
+            raise
+
         context.data.setdefault("data_results", []).append(
             {"step": task_desc, "sql": sql, "rows": rows}
         )

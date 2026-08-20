@@ -1,17 +1,40 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.exceptions import HTTPException
+
 from app.agents import data, executor, ml, planner, research, writer
 from app.config import settings
+from app.errors import AppError, app_error_handler, http_exception_handler, unhandled_exception_handler
 from app.logging.logger import setup_logger
 from app.models.llm_client import LLMClient
 from app.orchestrator.orchestrator import Orchestrator
-from app.orchestrator.state import TaskStore
-from app.routes import tasks
+from app.orchestrator.state import build_task_store
+from app.routes import health, tasks
 from app.tools import email, ml_tools, rag, sql
 from app.tools.filesystem import FilesystemTool
+
 logger = setup_logger()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    sql_tool: sql.SQLTool = app.state.sql_tool
+    try:
+        await sql_tool.connect()
+        logger.info("Database pool ready")
+    except Exception as exc:
+        logger.warning("Could not create DB pool: %s", exc)
+
+    app.state.task_store = await build_task_store(sql_tool.pool)
+    tasks.router.task_store = app.state.task_store
+    health.router.sql_tool = sql_tool
+    yield
+    await sql_tool.close()
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="Email Report Agent")
+    app = FastAPI(title="Multi-Agent Research & Automation System", lifespan=lifespan)
 
     llm = LLMClient()
     sql_tool = sql.SQLTool(dsn=settings.database_url)
@@ -41,13 +64,24 @@ def create_app() -> FastAPI:
         "executor": executor.ExecutorAgent(email_tool=email_tool, llm_client=llm),
     }
 
-    task_store = TaskStore()
     orchestrator = Orchestrator(agents=agents, filesystem_tool=fs_tool, logger=logger)
+
+    app.state.sql_tool = sql_tool
+    app.state.orchestrator = orchestrator
+
     tasks.router.orchestrator = orchestrator
-    tasks.router.task_store = task_store
+    tasks.router.task_store = None  # set during lifespan
+    health.router.sql_tool = sql_tool
+
+    app.include_router(health.router)
     app.include_router(tasks.router, prefix="/api")
+
+    app.add_exception_handler(AppError, app_error_handler)
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(Exception, unhandled_exception_handler)
 
     logger.info("Application started")
     return app
+
 
 app = create_app()

@@ -12,7 +12,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d analytics"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-analytics}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -48,7 +52,11 @@ services:
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      API_KEY: ${API_KEY:-}
+      SQL_ALLOWED_TABLES: ${SQL_ALLOWED_TABLES:-energy_usage,revenue,users}
+      SQL_ROW_LIMIT: ${SQL_ROW_LIMIT:-500}
       OCSVM_MODEL_PATH: ""
+      REGRESSION_MODEL_PATH: ""
       REPORTS_DIR: /app/reports
     volumes:
       - ../reports:/app/reports
@@ -57,6 +65,12 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
 volumes:
   pgdata:

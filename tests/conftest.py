@@ -51,6 +51,9 @@ class FakeEmailTool:
     def send_email(self, to: str, subject: str, body: str) -> None:
         self.sent.append({"to": to, "subject": subject, "body": body})
 
+    async def send_email_async(self, to: str, subject: str, body: str) -> None:
+        self.send_email(to, subject, body)
+
 
 class FakeRAGTool:
     def search(self, query: str):

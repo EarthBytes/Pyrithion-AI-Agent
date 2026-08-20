@@ -33,6 +33,18 @@ CREATE TABLE IF NOT EXISTS users (
     churned BOOLEAN NOT NULL DEFAULT FALSE,
     plan VARCHAR(32) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    goal TEXT,
+    email TEXT,
+    report TEXT,
+    logs JSONB DEFAULT '[]'::jsonb,
+    error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 """
 
 async def init_db() -> None:

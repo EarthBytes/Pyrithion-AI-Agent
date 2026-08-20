@@ -25,12 +25,25 @@ class Settings(BaseSettings):
     regression_model_path: str | None = None
     reports_dir: str = "reports"
 
+    api_key: str = ""
+    sql_allowed_tables: str = "energy_usage,revenue,users"
+    sql_row_limit: int = 500
+    embedding_model: str = "openai/text-embedding-3-small"
+    embedding_dim: int = 384
+    embedding_provider: str = "local"  # local | api | sentence-transformers
+    db_pool_min: int = 1
+    db_pool_max: int = 10
+
     db_schema_text: str = """
 Tables:
   energy_usage (id, timestamp, value, unit, site_id)
   revenue (id, date, amount, region, product)
   users (id, created_at, churned, plan)
 """
+
+    @property
+    def allowed_tables(self) -> set[str]:
+        return {t.strip().lower() for t in self.sql_allowed_tables.split(",") if t.strip()}
 
 
 settings = Settings()
