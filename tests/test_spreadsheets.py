@@ -5,8 +5,10 @@ def test_format_spreadsheet_text():
     csv_text = "Category,Amount\nMarketing,6000\nSales,12000"
     formatted = format_spreadsheet_text(csv_text, "budget.csv")
     assert "Spreadsheet: budget.csv" in formatted
-    assert "Marketing=6000" in formatted
-    assert "Sales=12000" in formatted
+    assert "Category=Marketing" in formatted
+    assert "Amount=6000" in formatted
+    assert "Category=Sales" in formatted
+    assert "Amount=12000" in formatted
 
 
 def test_chunk_text_splits_large_content():
