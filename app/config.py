@@ -2,9 +2,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
-    database_url: str = "postgresql://localhost/analytics"
+    database_url: str = "postgresql://localhost:5432/analytics"
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "docs"
     qdrant_api_key: str | None = None
@@ -19,7 +21,7 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
 
-    ocsvm_model_path: str | None = "models/ocsvm.joblib"
+    ocsvm_model_path: str | None = None
     regression_model_path: str | None = None
     reports_dir: str = "reports"
 

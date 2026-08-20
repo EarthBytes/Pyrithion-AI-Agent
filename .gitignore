@@ -1,2 +1,7 @@
 /docs
 app/__pycache__
+.venv/
+.env
+reports/
+__pycache__/
+.pytest_cache/
