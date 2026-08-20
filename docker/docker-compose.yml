@@ -1,10 +1,12 @@
 services:
   postgres:
     image: postgres:16-alpine
+    env_file:
+      - ../.env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: analytics
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-analytics}
     ports:
       - "5432:5432"
     volumes:
@@ -31,10 +33,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    env_file:
+      - ../.env
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/analytics
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-analytics}
       QDRANT_URL: http://qdrant:6333
       QDRANT_COLLECTION: docs
       LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
